@@ -50,22 +50,22 @@ export class AnalyticsService {
     if (cached) return JSON.parse(cached);
 
     // Build where clause params
-    const whereClauses: string[] = [`event_name = $1`];
+    const whereClauses: string[] = [`"eventName" = $1`];
     const params: any[] = [event];
     let paramIndex = 2;
 
     // app filter
     if (app_id) {
-      whereClauses.push(`app_id = $${paramIndex++}`);
+      whereClauses.push(`"appId" = $${paramIndex++}`);
       params.push(app_id);
     } else if (ownerAppId) {
-      whereClauses.push(`app_id = $${paramIndex++}`);
+      whereClauses.push(`"appId" = $${paramIndex++}`);
       params.push(ownerAppId);
     }
 
     // date filter
     if (startDate && endDate) {
-      whereClauses.push(`timestamp BETWEEN $${paramIndex++} AND $${paramIndex++}`);
+      whereClauses.push(`"timestamp" BETWEEN $${paramIndex++} AND $${paramIndex++}`);
       params.push(new Date(startDate));
       params.push(new Date(endDate));
     }
@@ -74,10 +74,10 @@ export class AnalyticsService {
 
     // Raw SQL for device counts
     const deviceSql = `
-      SELECT device, COUNT(*) AS cnt
+      SELECT "device", COUNT(*) AS cnt
       FROM public.events
       ${whereSql}
-      GROUP BY device
+      GROUP BY "device"
     `;
 
     const rawRows = (await prisma.$queryRawUnsafe(deviceSql, ...params)) as RawDeviceRow[];
@@ -94,7 +94,7 @@ export class AnalyticsService {
 
     // distinct ip count for unique users
     const distinctIpSql = `
-      SELECT COUNT(DISTINCT ip_address) as unique_count
+      SELECT COUNT(DISTINCT "ipAddress") as unique_count
       FROM public.events
       ${whereSql}
     `;
