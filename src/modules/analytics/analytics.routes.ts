@@ -10,6 +10,12 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
     "/api/analytics/collect",
     {
       preHandler: [apiKeyMiddleware],
+      config: {
+        rateLimit: {
+          max: 100,
+          timeWindow: '1 minute'
+        }
+      },
       schema: {
         tags: ["Analytics"],
         body: {
