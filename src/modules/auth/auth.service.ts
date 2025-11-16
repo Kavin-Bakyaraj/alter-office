@@ -19,6 +19,7 @@ export class AuthService {
       },
     });
 
+    // Cache hashed -> appId
     await redis.set(`api_key:${hashed}`, app.id, "EX", 60 * 60 * 24);
 
     return { apiKey, appId: app.id };
@@ -29,11 +30,11 @@ export class AuthService {
       where: { id: appId },
     });
 
-    if (!app || app.revoked) {
+    if (!app || (app as any).revoked) {
       throw new Error("App not found or revoked");
     }
 
-    return app.apiKeyHash;
+    return (app as any).apiKeyHash;
   }
 
   async revokeKey(appId: string) {
@@ -41,7 +42,7 @@ export class AuthService {
       where: { id: appId },
       data: {
         revoked: true,
-      },
+      } as any,
     });
 
     return { revoked: true };
@@ -60,7 +61,7 @@ export class AuthService {
         apiKeyHash: hashed,
         expiresAt,
         revoked: false,
-      },
+      } as any,
     });
 
     await redis.set(`api_key:${hashed}`, appId, "EX", 60 * 60 * 24);
@@ -81,7 +82,7 @@ export class AuthService {
         expiresAt: {
           gt: new Date(),
         },
-      },
+      } as any,
     });
 
     if (!app) return null;

@@ -7,7 +7,8 @@ export async function apiKeyMiddleware(
   req: FastifyRequest,
   reply: FastifyReply
 ) {
-  const apiKey = req.headers["x-api-key"];
+  const header = req.headers["x-api-key"];
+  const apiKey = Array.isArray(header) ? header[0] : header;
 
   if (!apiKey || typeof apiKey !== "string") {
     return reply.status(401).send({ error: "Missing API key" });
@@ -19,5 +20,6 @@ export async function apiKeyMiddleware(
     return reply.status(403).send({ error: "Invalid or expired API key" });
   }
 
+  // attach appId for handlers to use
   (req as any).appId = appId;
 }

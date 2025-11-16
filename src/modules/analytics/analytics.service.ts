@@ -1,15 +1,12 @@
 import { prisma } from "../../utils/prisma";
 import { redis } from "../../utils/redis";
 
-interface GroupByDeviceResult {
+/**
+ * Result type for raw SQL aggregation
+ */
+interface RawDeviceRow {
   device: string | null;
-  _count: {
-    device: number;
-  };
-}
-
-interface IpRecord {
-  ipAddress: string | null;
+  cnt: string | number;
 }
 
 export class AnalyticsService {
@@ -42,6 +39,9 @@ export class AnalyticsService {
     return { success: true };
   }
 
+  /**
+   * Event summary using a raw SQL aggregation to avoid groupBy typing issues.
+   */
   async eventSummary(query: any, ownerAppId: string) {
     const { event, startDate, endDate, app_id } = query;
 
@@ -49,51 +49,58 @@ export class AnalyticsService {
     const cached = await redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
-    const conditions: any = {
-      eventName: event,
-    };
+    // Build where clause params
+    const whereClauses: string[] = [`event_name = $1`];
+    const params: any[] = [event];
+    let paramIndex = 2;
 
+    // app filter
     if (app_id) {
-      conditions.appId = app_id;
-    } else {
-      conditions.appId = ownerAppId;
+      whereClauses.push(`app_id = $${paramIndex++}`);
+      params.push(app_id);
+    } else if (ownerAppId) {
+      whereClauses.push(`app_id = $${paramIndex++}`);
+      params.push(ownerAppId);
     }
 
+    // date filter
     if (startDate && endDate) {
-      conditions.timestamp = {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
-      };
+      whereClauses.push(`timestamp BETWEEN $${paramIndex++} AND $${paramIndex++}`);
+      params.push(new Date(startDate));
+      params.push(new Date(endDate));
     }
 
-    const result: GroupByDeviceResult[] = await prisma.event.groupBy({
-      by: ["device"],
-      where: conditions,
-      _count: {
-        device: true,
-      },
-    });
+    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
-    const total = result.reduce(
-      (acc: number, row: GroupByDeviceResult) => acc + row._count.device,
-      0
-    );
+    // Raw SQL for device counts
+    const deviceSql = `
+      SELECT device, COUNT(*) AS cnt
+      FROM public.events
+      ${whereSql}
+      GROUP BY device
+    `;
 
-    const uniqueUsersRecords: IpRecord[] = await prisma.event
-      .findMany({
-        where: conditions,
-        select: { ipAddress: true },
-        distinct: ["ipAddress"],
-      })
-      .then((rows: IpRecord[]) => rows);
+    const rawRows = (await prisma.$queryRawUnsafe(deviceSql, ...params)) as RawDeviceRow[];
 
-    const uniqueUsers = uniqueUsersRecords.length;
-
+    // calculate total and device breakdown
     const deviceData: Record<string, number> = {};
-    result.forEach((row: GroupByDeviceResult) => {
-      const key = row.device || "unknown";
-      deviceData[key] = row._count.device;
-    });
+    let total = 0;
+    for (const row of rawRows) {
+      const deviceKey = row.device ?? "unknown";
+      const count = typeof row.cnt === "string" ? parseInt(row.cnt, 10) : Number(row.cnt);
+      deviceData[deviceKey] = count;
+      total += count;
+    }
+
+    // distinct ip count for unique users
+    const distinctIpSql = `
+      SELECT COUNT(DISTINCT ip_address) as unique_count
+      FROM public.events
+      ${whereSql}
+    `;
+    const distinctIpRow = (await prisma.$queryRawUnsafe(distinctIpSql, ...params)) as Array<{ unique_count: string | number }>;
+    const uniqueUsers =
+      distinctIpRow && distinctIpRow.length ? Number(distinctIpRow[0].unique_count) : 0;
 
     const summary = {
       event,
@@ -131,12 +138,15 @@ export class AnalyticsService {
     const totalEvents = events.length;
     const recent = events[0];
 
+    // metadata is Prisma.JsonValue -> cast to object for safe access
+    const metadata = (recent.metadata as unknown) as Record<string, any> | undefined;
+
     const response = {
       userId,
       totalEvents,
       deviceDetails: {
-        browser: recent.metadata?.browser || "unknown",
-        os: recent.metadata?.os || "unknown",
+        browser: (metadata && metadata.browser) || "unknown",
+        os: (metadata && metadata.os) || "unknown",
       },
       ipAddress: recent.ipAddress || "unknown",
     };
