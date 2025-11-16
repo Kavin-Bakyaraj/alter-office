@@ -31,6 +31,14 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
             userId: { type: "string" },
             metadata: { type: "object" }
           }
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" }
+            }
+          }
         }
       }
     },
@@ -53,6 +61,17 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
             app_id: { type: "string" }
           },
           required: ["event"]
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              event: { type: "string" },
+              count: { type: "number" },
+              uniqueUsers: { type: "number" },
+              deviceData: { type: "object" }
+            }
+          }
         }
       }
     },
@@ -72,6 +91,23 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
             userId: { type: "string" }
           },
           required: ["userId"]
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              userId: { type: "string" },
+              totalEvents: { type: "number" },
+              deviceDetails: {
+                type: "object",
+                properties: {
+                  browser: { type: "string" },
+                  os: { type: "string" }
+                }
+              },
+              ipAddress: { type: "string" }
+            }
+          }
         }
       }
     },

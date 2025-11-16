@@ -7,9 +7,69 @@ const authService = new AuthService();
 
 export async function authRoutes(fastify: FastifyInstance) {
   // POST routes (existing)
-  fastify.post("/api/auth/register", controller.register);
-  fastify.post("/api/auth/revoke", controller.revoke);
-  fastify.post("/api/auth/regenerate", controller.generate);
+  fastify.post("/api/auth/register", {
+    schema: {
+      tags: ["Auth"],
+      body: {
+        type: "object",
+        required: ["name", "ownerEmail"],
+        properties: {
+          name: { type: "string" },
+          ownerEmail: { type: "string" }
+        }
+      },
+      response: {
+        200: {
+          type: "object",
+          properties: {
+            apiKey: { type: "string" },
+            appId: { type: "string" }
+          }
+        }
+      }
+    }
+  }, controller.register);
+  fastify.post("/api/auth/revoke", {
+    schema: {
+      tags: ["Auth"],
+      body: {
+        type: "object",
+        required: ["appId"],
+        properties: {
+          appId: { type: "string" }
+        }
+      },
+      response: {
+        200: {
+          type: "object",
+          properties: {
+            revoked: { type: "boolean" }
+          }
+        }
+      }
+    }
+  }, controller.revoke);
+  fastify.post("/api/auth/regenerate", {
+    schema: {
+      tags: ["Auth"],
+      body: {
+        type: "object",
+        required: ["appId"],
+        properties: {
+          appId: { type: "string" }
+        }
+      },
+      response: {
+        200: {
+          type: "object",
+          properties: {
+            apiKey: { type: "string" },
+            appId: { type: "string" }
+          }
+        }
+      }
+    }
+  }, controller.generate);
 
   // GET /api/auth/api-key?appId=...
   fastify.get(

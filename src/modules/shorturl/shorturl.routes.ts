@@ -16,6 +16,15 @@ export async function shortUrlRoutes(fastify: FastifyInstance) {
           type: "object",
           required: ["originalUrl"],
           properties: { originalUrl: { type: "string" } }
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              shortId: { type: "string" },
+              shortUrl: { type: "string" }
+            }
+          }
         }
       }
     },
