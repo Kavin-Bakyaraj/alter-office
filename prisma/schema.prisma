@@ -43,3 +43,12 @@ model Event {
   @@index([timestamp])
   @@map("events")
 }
+
+model ShortUrl {
+  id          String   @id
+  appId       String
+  originalUrl String   @map("original_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("short_urls")
+}
